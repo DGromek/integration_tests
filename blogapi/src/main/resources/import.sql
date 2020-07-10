@@ -1,5 +1,6 @@
 --this script initiates db for h2 db (used in test profile)
 insert into user (account_status, email, first_name, last_name) values ('CONFIRMED', 'john@domain.com', 'John', 'Steward')
 insert into user (account_status, email, first_name) values ('NEW', 'brian@domain.com', 'Brian')
+insert into user (account_status, email, first_name) values ('REMOVED', 'adam@domain.com', 'Adam')
 insert into blog_post (user_id, entry) values (2, 'UNRELEVANT 1ST POST CONTENT')
 insert into blog_post (user_id, entry) values (1, 'UNRELEVANT 2TH POST CONTENT')
