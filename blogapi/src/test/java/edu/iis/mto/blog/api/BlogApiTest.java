@@ -1,30 +1,33 @@
 package edu.iis.mto.blog.api;
 
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.iis.mto.blog.api.request.UserRequest;
+import edu.iis.mto.blog.dto.Id;
+import edu.iis.mto.blog.services.BlogService;
+import edu.iis.mto.blog.services.DataFinder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import javax.persistence.EntityNotFoundException;
 
-import edu.iis.mto.blog.api.request.UserRequest;
-import edu.iis.mto.blog.dto.Id;
-import edu.iis.mto.blog.services.BlogService;
-import edu.iis.mto.blog.services.DataFinder;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @RunWith(SpringRunner.class)
 @WebMvcTest(BlogApi.class)
 public class BlogApiTest {
+    private static final Long UNRELEVANT_USER_ID = 1000L;
 
     @Autowired
     private MockMvc mvc;
@@ -37,19 +40,44 @@ public class BlogApiTest {
 
     @Test
     public void postBlogUserShouldResponseWithStatusCreatedAndNewUserId() throws Exception {
-        Long newUserId = 1L;
         UserRequest user = new UserRequest();
         user.setEmail("john@domain.com");
         user.setFirstName("John");
         user.setLastName("Steward");
-        when(blogService.createUser(user)).thenReturn(newUserId);
+
+        when(blogService.createUser(user)).thenReturn(UNRELEVANT_USER_ID);
         String content = writeJson(user);
 
         mvc.perform(post("/blog/user").contentType(MediaType.APPLICATION_JSON)
                                       .accept(MediaType.APPLICATION_JSON)
                                       .content(content))
            .andExpect(status().isCreated())
-           .andExpect(content().string(writeJson(new Id(newUserId))));
+           .andExpect(content().string(writeJson(new Id(UNRELEVANT_USER_ID))));
+    }
+
+    @Test
+    public void throwingDataIntegrityViolationExceptionShouldEndWithStatusConflict() throws Exception {
+        UserRequest user = new UserRequest();
+        user.setEmail("john@domain.com");
+        user.setFirstName("John");
+        user.setLastName("Steward");
+
+        String content = writeJson(user);
+
+        when(blogService.createUser(user)).thenThrow(DataIntegrityViolationException.class);
+
+        mvc.perform(post("/blog/user").contentType(MediaType.APPLICATION_JSON)
+                                      .accept(MediaType.APPLICATION_JSON)
+                                      .content(content))
+           .andExpect(status().isConflict());
+    }
+
+    @Test
+    public void callingNotExistingUserShouldResponseWithStatusNotFound() throws Exception {
+        when(finder.getUserData(UNRELEVANT_USER_ID)).thenThrow(EntityNotFoundException.class);
+
+        mvc.perform(get("/blog/user/{id}", UNRELEVANT_USER_ID))
+           .andExpect(status().isNotFound());
     }
 
     private String writeJson(Object obj) throws JsonProcessingException {
