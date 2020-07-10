@@ -61,6 +61,9 @@ public class BlogManager extends DomainService implements BlogService {
         if (existingLikeForPost.isPresent()) {
             return false;
         }
+        if (user.getAccountStatus() != AccountStatus.CONFIRMED) {
+            throw new DomainError(DomainError.USER_NOT_CONFIRMED);
+        }
         LikePost likePost = new LikePost();
         likePost.setUser(user);
         likePost.setPost(post);
